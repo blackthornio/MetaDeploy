@@ -1,4 +1,4 @@
-import { fireEvent } from '@testing-library/react';
+import { fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { StaticRouter } from 'react-router-dom';
 
@@ -453,7 +453,7 @@ describe('<JobDetail />', () => {
 
         expect(getByText('Access Your Scratch Org')).toBeVisible();
         expect(input).toBeVisible();
-        expect(input.value).toEqual(
+        expect(input.value).toBe(
           `${window.location.origin}${url}?scratch_org_id=${scratchOrg.uuid}`,
         );
       });
@@ -613,9 +613,8 @@ describe('<JobDetail />', () => {
   });
 
   describe('cancel btn click', () => {
-    test('calls requestCancelJob', () => {
-      const canceled = Promise.resolve({});
-      requestCancelJob.mockReturnValue(() => canceled);
+    test('calls requestCancelJob', async () => {
+      requestCancelJob.mockReturnValue(() => Promise.resolve({}));
       const id = 'job-1';
       const { getAllByText } = setup({
         initialState: {
@@ -631,11 +630,11 @@ describe('<JobDetail />', () => {
       });
       fireEvent.click(getAllByText('Cancel Installation')[0]);
 
-      expect.assertions(2);
       expect(requestCancelJob).toHaveBeenCalledWith('job-1');
-      return canceled.then(() => {
-        expect(getAllByText('Canceling Installation…')[0]).toBeVisible();
-      });
+
+      await waitFor(() =>
+        expect(getAllByText('Canceling Installation…')[0]).toBeVisible(),
+      );
     });
   });
 
