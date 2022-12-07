@@ -116,3 +116,4 @@ env/
 *.dump
 dump.rdb
 /postgres
+.history
