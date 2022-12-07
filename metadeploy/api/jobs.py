@@ -118,7 +118,7 @@ def finalize_result(result: Union[Job, PreflightResult]):
         log_msg = f"{result.__class__.__name__} {result.id} errored"
         result.exception = "".join(traceback.format_tb(e.__traceback__))
         result.exception += "\n" + f"{e.__class__.__name__}: {e}"
-        if hasattr(e, "response"):
+        if getattr(e, "response", None) is not None:
             result.exception += "\n" + e.response.text
         raise
     finally:
@@ -259,6 +259,9 @@ def run_flows(
                 "client_secret": settings.SFDX_CLIENT_SECRET,
                 "callback_url": settings.SFDX_CLIENT_CALLBACK_URL,
                 "client_id": settings.SFDX_CLIENT_ID,
+                # Note: login_url is not used when refreshing the existing token,
+                # so it doesn't matter whether it's login vs test
+                "login_url": "https://login.salesforce.com",
             }
         )
         ctx.keychain.set_service("connected_app", "metadeploy", connected_app)
@@ -321,7 +324,6 @@ def expire_preflights():
         minutes=settings.PREFLIGHT_LIFETIME_MINUTES
     )
     preflights_to_invalidate = PreflightResult.objects.filter(
-        status=PreflightResult.Status.complete,
         created_at__lte=preflight_lifetime_ago,
         is_valid=True,
     )

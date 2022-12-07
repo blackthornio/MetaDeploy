@@ -8,12 +8,17 @@ import standardSprite from '@salesforce-ux/design-system/assets/icons/standard-s
 import utilitySprite from '@salesforce-ux/design-system/assets/icons/utility-sprite/svg/symbols.svg';
 import { createBrowserHistory } from 'history';
 import { t } from 'i18next';
-import * as React from 'react';
+import React from 'react';
 import DocumentTitle from 'react-document-title';
-import * as ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
+// Consider upgrading to v6: https://github.com/remix-run/react-router/discussions/8753
 import { Redirect, Route, Router, Switch } from 'react-router-dom';
-import { applyMiddleware, createStore } from 'redux';
+import {
+  applyMiddleware,
+  // Consider upgrading to Redux Toolkit: https://github.com/reduxjs/redux/releases/tag/v4.2.0
+  legacy_createStore as createStore,
+} from 'redux';
 import { composeWithDevTools } from 'redux-devtools-extension';
 import logger from 'redux-logger';
 import thunk from 'redux-thunk';
@@ -40,9 +45,11 @@ import { createSocket } from '@/js/utils/websockets';
 
 const history = createBrowserHistory();
 
+console.log('>>> index.tsx');
+
 const App = () => (
   <DocumentTitle title={window.SITE_NAME}>
-    <div className="slds-grid slds-grid_frame slds-grid_vertical">
+    <div className="slds-grid slds-grid_frame slds-grid_vertical metadeploy-frame">
       <ErrorBoundary>
         <div className="slds-grow slds-shrink-none">
           <ErrorBoundary>
@@ -93,6 +100,7 @@ init_i18n((i18nError?: string) => {
     log(i18nError);
   }
   const el = document.getElementById('app');
+  console.log('>>> fetched app element');
   if (el) {
     // Remove scratch org UUID from URL
     const scratchOrgUUID = getUrlParam(SCRATCH_ORG_QS);
@@ -100,6 +108,7 @@ init_i18n((i18nError?: string) => {
       history.replace({ search: removeUrlParam(SCRATCH_ORG_QS) });
     }
 
+    console.log('>>> creating app store');
     // Create store
     const appStore = createStore(
       reducer,
@@ -108,7 +117,9 @@ init_i18n((i18nError?: string) => {
         applyMiddleware(thunk.withExtraArgument(history), logger),
       ),
     );
+    console.log('>>> appStore created');
 
+    console.log('>>> connecting to websocket server');
     // Connect to WebSocket server
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
@@ -121,6 +132,7 @@ init_i18n((i18nError?: string) => {
         },
       },
     });
+    console.log('>>> connected to websocket server');
 
     // Get JS globals
     let GLOBALS = {};
@@ -165,11 +177,12 @@ init_i18n((i18nError?: string) => {
 
     // Set App element (used for react-SLDS modals)
     settings.setAppElement(el);
-
+    console.log('>>> about to fetch products');
     // Fetch products before rendering App
     (appStore.dispatch as ThunkDispatch)(fetchProducts()).finally(() => {
       (appStore.dispatch as ThunkDispatch)(fetchOrgJobs());
-      ReactDOM.render(
+      const root = createRoot(el);
+      root.render(
         <Provider store={appStore}>
           <Router history={history}>
             <UNSAFE_DirectionSettings.Provider value={document.dir || 'ltr'}>
@@ -185,8 +198,8 @@ init_i18n((i18nError?: string) => {
             </UNSAFE_DirectionSettings.Provider>
           </Router>
         </Provider>,
-        el,
       );
     });
+    console.log('>>> fetched products');
   }
 });

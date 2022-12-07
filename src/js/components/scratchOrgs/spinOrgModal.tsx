@@ -2,8 +2,8 @@ import Button from '@salesforce/design-system-react/components/button';
 import Checkbox from '@salesforce/design-system-react/components/checkbox';
 import Input from '@salesforce/design-system-react/components/input';
 import Modal from '@salesforce/design-system-react/components/modal';
-import { t } from 'i18next';
-import React, { useCallback, useState } from 'react';
+import React, { ChangeEvent, useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
   isOpen: boolean;
@@ -18,36 +18,69 @@ const SpinOrg = ({
   toggleModal,
   doSpinOrg,
 }: Props) => {
+  const { t } = useTranslation();
+  const masterAgreement = window.GLOBALS.SITE?.master_agreement;
   const [confirmed, setConfirmed] = useState(!clickThroughAgreement);
-  const [currentPage, setCurrentPage] = useState(clickThroughAgreement ? 0 : 1);
+  const [msaConfirmed, setMsaConfirmed] = useState(!masterAgreement);
+  const EMAIL_PAGE = 2;
+  const CLICKTHROUGH_PAGE = 1;
+  const MSA_PAGE = 0;
+
+  let startPage = EMAIL_PAGE;
+
+  if (masterAgreement) {
+    startPage = MSA_PAGE;
+  } else if (clickThroughAgreement) {
+    startPage = CLICKTHROUGH_PAGE;
+  }
+  const [currentPage, setCurrentPage] = useState(startPage);
   const [email, setEmail] = useState('');
 
   const nextPage = useCallback(() => {
-    setCurrentPage(currentPage + 1);
-  }, [currentPage]);
+    switch (currentPage) {
+      case 0:
+        // If `confirmed` is truthy, either there is no clickthrough
+        // or the user already approved it.
+        setCurrentPage(confirmed ? EMAIL_PAGE : CLICKTHROUGH_PAGE);
+        break;
+      case 1:
+        setCurrentPage(EMAIL_PAGE);
+        break;
+    }
+  }, [currentPage, confirmed]);
 
   const resetAndClose = useCallback(() => {
     setConfirmed(!clickThroughAgreement);
+    setMsaConfirmed(!masterAgreement);
     setEmail('');
-    setCurrentPage(clickThroughAgreement ? 0 : 1);
+    setCurrentPage(startPage);
     toggleModal(false);
-  }, [clickThroughAgreement, toggleModal]);
+  }, [startPage, clickThroughAgreement, masterAgreement, toggleModal]);
 
   const handleSubmit = useCallback(() => {
     /* istanbul ignore next */
-    if (confirmed) {
-      if (currentPage === 0) {
-        nextPage();
-      } /* istanbul ignore else */ else if (email) {
-        doSpinOrg(email);
-        resetAndClose();
-      }
+    if (
+      (currentPage === MSA_PAGE && msaConfirmed) ||
+      (currentPage === CLICKTHROUGH_PAGE && confirmed)
+    ) {
+      nextPage();
+    } /* istanbul ignore else */ else if (email && confirmed && msaConfirmed) {
+      doSpinOrg(email);
+      resetAndClose();
     }
-  }, [confirmed, currentPage, doSpinOrg, email, nextPage, resetAndClose]);
+  }, [
+    confirmed,
+    msaConfirmed,
+    currentPage,
+    doSpinOrg,
+    email,
+    nextPage,
+    resetAndClose,
+  ]);
 
   const handleConfirmChange = useCallback(
     (
-      event: React.ChangeEvent<HTMLInputElement>,
+      event: ChangeEvent<HTMLInputElement>,
       { checked }: { checked: boolean },
     ) => {
       setConfirmed(checked);
@@ -55,17 +88,50 @@ const SpinOrg = ({
     [],
   );
 
-  const handleEmailChange = useCallback(
+  const handleConfirmMsaChange = useCallback(
     (
-      event: React.ChangeEvent<HTMLInputElement>,
-      { value }: { value: string },
+      event: ChangeEvent<HTMLInputElement>,
+      { checked }: { checked: boolean },
     ) => {
+      setMsaConfirmed(checked);
+    },
+    [],
+  );
+
+  const handleEmailChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>, { value }: { value: string }) => {
       setEmail(value);
     },
     [],
   );
 
   const pages = [
+    {
+      heading: t('Master Services Agreement'),
+      content: masterAgreement ? (
+        <>
+          <div
+            className="slds-text-longform slds-scrollable_y slds-box markdown"
+            style={{ maxHeight: '250px' }}
+            dangerouslySetInnerHTML={{
+              __html: masterAgreement,
+            }}
+          />
+          <Checkbox
+            id="click-through-confirm"
+            className="slds-p-top_medium"
+            checked={msaConfirmed}
+            required
+            labels={{
+              label: t(
+                'I confirm I have read and agree to these terms of use and licenses.',
+              ),
+            }}
+            onChange={handleConfirmMsaChange}
+          />
+        </>
+      ) : null,
+    },
     {
       heading: t('Product Terms of Use and Licenses'),
       content: clickThroughAgreement ? (
@@ -121,6 +187,7 @@ const SpinOrg = ({
   return (
     <Modal
       isOpen={isOpen}
+      dismissOnClickOutside={false}
       onRequestClose={resetAndClose}
       size="medium"
       heading={pages[currentPage].heading}
@@ -128,11 +195,13 @@ const SpinOrg = ({
         <Button key="cancel" label={t('Cancel')} onClick={resetAndClose} />,
         <Button
           key="confirm"
-          label={currentPage === 0 ? t('Confirm & Next') : t('Confirm')}
+          label={currentPage === 2 ? t('Confirm') : t('Confirm & Next')}
           variant="brand"
           onClick={handleSubmit}
           disabled={
-            (currentPage === 0 && !confirmed) || (currentPage === 1 && !email)
+            (currentPage === 0 && !msaConfirmed) ||
+            (currentPage === 1 && !confirmed) ||
+            (currentPage === 2 && !email)
           }
         />,
       ]}
