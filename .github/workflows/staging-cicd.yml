@@ -1,0 +1,41 @@
+name: Staging CI/CD
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  push_image:
+    uses: ./.github/workflows/generic-build-image.yml
+    secrets: inherit
+    with:
+      REPOSITORY: candyshop/stg
+      VERSION: ${{ github.sha }}
+      SERVICE_ROLE: ${{ vars.STAGING_CI_CD_ROLE }}
+
+  deploy_app:
+    needs: [push_image]
+    uses: ./.github/workflows/app-ecs-deploy.yml
+    secrets: inherit
+    with:
+      SERVICE_ROLE: ${{ vars.STAGING_CI_CD_ROLE }}
+      SECRET: candyshop/stg
+      IMAGE: ${{ needs.push_image.outputs.image }}
+      TASK_DEFINITION_NAME: candyshop-app-stg
+      ESC_CLUSTER_NAME: general-stg
+      ESC_SERVICE_NAME: candyshop-app-stg-ecs-service
+  
+  deploy_worker:
+    needs: [push_image]
+    uses: ./.github/workflows/worker-ecs-deploy.yml
+    secrets: inherit
+    with:
+      SERVICE_ROLE: ${{ vars.STAGING_CI_CD_ROLE }}
+      SECRET: candyshop/stg
+      IMAGE: ${{ needs.push_image.outputs.image }}
+      TASK_DEFINITION_NAME: candyshop-worker-stg
+      ESC_CLUSTER_NAME: general-stg
+      ESC_SERVICE_NAME: candyshop-worker-stg-ecs-service

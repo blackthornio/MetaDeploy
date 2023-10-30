@@ -1,0 +1,68 @@
+name: Deploy Image
+
+on:
+  workflow_call:
+    inputs:
+      SERVICE_ROLE:
+        required: true
+        type: string
+      SECRET:
+        required: true
+        type: string
+      IMAGE:
+        required: true
+        type: string
+      TASK_DEFINITION_NAME:
+        required: true
+        type: string
+      ESC_CLUSTER_NAME:
+        required: true
+        type: string
+      ESC_SERVICE_NAME:
+        required: true
+        type: string
+      WAIT_FOR_STABILITY:
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  start:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ inputs.SERVICE_ROLE }}
+          aws-region: us-east-1
+          mask-aws-account-id: 'no'
+
+      - name: Get task definition
+        env:
+          TASK_DEFINITION_NAME: ${{ inputs.TASK_DEFINITION_NAME }}
+        run: |
+          aws ecs describe-task-definition --task-definition $TASK_DEFINITION_NAME --query taskDefinition \
+            | jq 'del(.compatibilities, .taskDefinitionArn, .requiresAttributes, .revision, .status, .registeredAt, .registeredBy)' \
+            > task-definition.json
+
+      - name: Update task definition
+        id: task
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: default-queue-worker
+          image: ${{ inputs.IMAGE }}
+
+      - name: Deploy task definition and update service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task.outputs.task-definition }}
+          cluster: ${{ inputs.ESC_CLUSTER_NAME }}
+          service: ${{ inputs.ESC_SERVICE_NAME }}
+          wait-for-service-stability: ${{ inputs.WAIT_FOR_STABILITY }}

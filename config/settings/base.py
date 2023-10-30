@@ -182,6 +182,9 @@ SECURE_PROXY_SSL_HEADER = env.tuple(
     default=("HTTP_X_FORWARDED_PROTO", "https"),
 )
 SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+SECURE_REDIRECT_EXEMPT = [
+    "health"
+]
 SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=SECURE_SSL_REDIRECT)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=SECURE_SSL_REDIRECT)
@@ -342,6 +345,8 @@ GITHUB_APP_ID = env("GITHUB_APP_ID", default=None)
 # Ugly hack to fix https://github.com/moby/moby/issues/12997
 DOCKER_GITHUB_APP_KEY = env("DOCKER_GITHUB_APP_KEY", default="").replace("\\n", "\n")
 GITHUB_APP_KEY = env("GITHUB_APP_KEY", default=DOCKER_GITHUB_APP_KEY)
+
+os_environ["GITHUB_APP_KEY"] = GITHUB_APP_KEY
 
 
 if not GITHUB_TOKEN and not GITHUB_APP_ID and not GITHUB_APP_KEY:
