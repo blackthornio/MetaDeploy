@@ -7,6 +7,15 @@ from django.test import RequestFactory
 from sfdo_template_helpers.oauth2.salesforce.views import SalesforcePermissionsError
 
 from ..views import custom_500_view, custom_permission_denied_view
+from ..urls import health
+
+
+@pytest.mark.django_db
+def test_user_view(client):
+    request = RequestFactory().get("health")
+    response = health(request)
+
+    assert response.status_code == 200
 
 
 @pytest.mark.django_db

@@ -30,8 +30,10 @@ PREFIX = settings.ADMIN_AREA_PREFIX
 handler403 = "metadeploy.views.custom_permission_denied_view"
 handler500 = "metadeploy.views.custom_500_view"
 
+
 def health(request):
-    return JsonResponse({ 'status': 'Healthy' })
+    return JsonResponse({'status': 'Healthy'})
+
 
 urlpatterns = [
     path("health", health),
