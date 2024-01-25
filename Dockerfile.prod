@@ -1,0 +1,44 @@
+FROM node:16-alpine AS node_project
+WORKDIR app
+
+COPY package.json yarn.lock webpack.common.js webpack.prod.js \
+  tsconfig.json postcss.config.js babel.config.js .browserslistrc .
+COPY static static
+COPY src src
+
+RUN yarn install --frozen-lockfile
+RUN yarn prod
+
+FROM python:3.9 AS python_project
+WORKDIR app
+
+ENV PYTHONPATH /app
+ENV DJANGO_SETTINGS_MODULE config.settings.production
+
+COPY --from=node_project app/dist dist
+COPY requirements requirements
+COPY templates templates
+COPY robot robot
+COPY metadeploy metadeploy
+COPY locale locale
+COPY locales locales
+COPY config config
+COPY start-server.sh manage.py cumulusci.yml .
+
+RUN apt-get update \
+  && apt-get install -y gettext redis-tools --no-install-recommends \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir --upgrade pip pip-tools \
+  pip install --no-cache-dir -r requirements/prod.txt
+
+RUN \
+  DB_ENCRYPTION_KEY="Ul-OySkEawSxUc7Ck13Twu2109IzIFh54C1WXO9KAFE=" \
+  GITHUB_TOKEN="sample token" \
+  SFDX_CLIENT_SECRET="sample secret" \
+  SFDX_CLIENT_CALLBACK_URL="sample callback" \
+  SFDX_CLIENT_ID="sample id" \
+  python manage.py collectstatic --noinput
+ 
+CMD daphne metadeploy.asgi:application --port 8000 -b 0.0.0.0

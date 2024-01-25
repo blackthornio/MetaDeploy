@@ -20,6 +20,7 @@ from django.contrib import admin
 from django.urls import include, path, re_path
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.generic import RedirectView, TemplateView
+from django.http import JsonResponse
 
 from .routing import websockets
 
@@ -30,7 +31,12 @@ handler403 = "metadeploy.views.custom_permission_denied_view"
 handler500 = "metadeploy.views.custom_500_view"
 
 
+def health(request):
+    return JsonResponse({'status': 'Healthy'})
+
+
 urlpatterns = [
+    path("health", health),
     path(urljoin(PREFIX, r"django-rq/"), include("django_rq.urls")),
     path(
         urljoin(PREFIX, r"rest/"),
