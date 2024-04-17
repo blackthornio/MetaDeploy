@@ -25,7 +25,7 @@ COPY locales locales
 COPY config config
 COPY start-server.sh manage.py cumulusci.yml .
 
-RUN apt-get update \
+RUN apt-get update && apt-get upgrade -y \
   && apt-get install -y gettext redis-tools --no-install-recommends \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
